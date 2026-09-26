@@ -4,140 +4,236 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IoT + ML Smart Menstrual Health Monitor</title>
+    <!-- Chart.js for live charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Firebase SDK (compat) for realtime data -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
         * {
-            margin: 0; padding: 0; box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         body {
-            background: #0b0f1c; color: #eef2ff; padding: 20px;
-            min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+            background: #0b0f1c;
+            color: #eef2ff;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .dashboard { max-width: 1400px; width: 100%; }
-
+        .dashboard {
+            max-width: 1400px;
+            width: 100%;
+        }
         header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         h1 {
-            font-size: 1.9rem; font-weight: 600;
+            font-size: 1.9rem;
+            font-weight: 600;
             background: linear-gradient(135deg, #a78bfa, #f472b6);
-            -webkit-background-clip: text; background-clip: text;
-            color: transparent; letter-spacing: -0.5px;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.5px;
         }
         .badge {
-            background: #1e293b; padding: 8px 16px; border-radius: 100px;
-            display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
-            font-weight: 500; border: 1px solid #334155;
+            background: #1e293b;
+            padding: 8px 16px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid #334155;
         }
         .dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            background: #22c55e; animation: pulse 1.8s infinite;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 1.8s infinite;
         }
-        .dot.offline { background: #ef4444; animation: none; }
+        .dot.offline {
+            background: #ef4444;
+            animation: none;
+        }
         @keyframes pulse {
             0% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(0.9); }
             100% { opacity: 1; transform: scale(1); }
         }
-
         .grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px; margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
         .card {
-            background: #111827; border-radius: 24px; padding: 18px 20px;
-            border: 1px solid #1e293b; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+            background: #111827;
+            border-radius: 24px;
+            padding: 18px 20px;
+            border: 1px solid #1e293b;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
             transition: all 0.15s;
         }
         .card-label {
-            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;
-            color: #94a3b8; margin-bottom: 8px;
-            display: flex; justify-content: space-between;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
         }
-        .card-value { font-size: 2.2rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
-        .card-unit { font-size: 0.9rem; color: #94a3b8; font-weight: 400; }
-
+        .card-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+        .card-unit {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            font-weight: 400;
+        }
         .status-pill {
-            display: inline-block; padding: 6px 12px; border-radius: 100px;
-            font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
             letter-spacing: 0.3px;
         }
         .status-normal { background: #166534; color: #bbf7d0; }
         .status-alert { background: #b45309; color: #fef08a; }
         .status-sos { background: #991b1b; color: #fecaca; animation: blink 1s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-
-        .rating-pill {
-            display: inline-block; padding: 4px 10px; border-radius: 100px;
-            font-size: 0.75rem; font-weight: 600;
-        }
-        .rating-excellent { background: #166534; color: #bbf7d0; }
-        .rating-good      { background: #15803d; color: #d9f99d; }
-        .rating-fair      { background: #a16207; color: #fef08a; }
-        .rating-weak      { background: #b45309; color: #fed7aa; }
-        .rating-poor      { background: #991b1b; color: #fecaca; }
-        .rating-none      { background: #334155; color: #cbd5e1; }
-
         .chart-container {
-            background: #111827; border-radius: 24px; padding: 20px;
-            border: 1px solid #1e293b; margin-bottom: 24px;
-            height: 260px; position: relative;
+            background: #111827;
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid #1e293b;
+            margin-bottom: 24px;
+            height: 260px;
+            position: relative;
         }
-        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        @media (max-width: 700px) { .chart-row { grid-template-columns: 1fr; } }
-
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 700px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
         .chart-header {
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 12px;
         }
-        .chart-header h3 { font-weight: 500; font-size: 1rem; color: #cbd5e1; }
-        canvas { width: 100% !important; height: 180px !important; }
-
-        .ml-panel {
-            background: #0f172a; border-radius: 24px; padding: 20px;
-            border: 1px solid #2d3a52; margin-bottom: 24px;
+        .chart-header h3 {
+            font-weight: 500;
+            font-size: 1rem;
+            color: #cbd5e1;
         }
-        .ml-title { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-        .ml-title h2 { font-size: 1.2rem; font-weight: 500; color: #c4b5fd; }
-
+        canvas { width: 100% !important; height: 180px !important; }
+        .ml-panel {
+            background: #0f172a;
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid #2d3a52;
+            margin-bottom: 24px;
+        }
+        .ml-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .ml-title h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #c4b5fd;
+        }
         .ml-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 16px;
         }
+        @media (max-width: 600px) {
+            .ml-grid { grid-template-columns: 1fr; }
+        }
         .ml-item {
-            background: #1e293b; border-radius: 18px; padding: 14px 16px;
+            background: #1e293b;
+            border-radius: 18px;
+            padding: 14px 16px;
             border-left: 4px solid #a78bfa;
         }
         .ml-item .label {
-            font-size: 0.75rem; color: #94a3b8;
-            text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .ml-item .value { font-size: 1.5rem; font-weight: 600; margin-top: 6px; }
-
+        .ml-item .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 6px;
+        }
         .ml-note {
-            font-size: 0.75rem; color: #64748b; margin-top: 12px;
-            border-top: 1px solid #1e293b; padding-top: 12px;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 12px;
+            border-top: 1px solid #1e293b;
+            padding-top: 12px;
         }
-
         .fault-log {
-            background: #111827; border-radius: 24px; padding: 20px;
+            background: #111827;
+            border-radius: 24px;
+            padding: 20px;
             border: 1px solid #1e293b;
         }
-        .fault-log h3 { font-weight: 500; margin-bottom: 12px; color: #f87171; }
+        .fault-log h3 {
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: #f87171;
+        }
         .log-entry {
-            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
-            background: #0b0f1c; padding: 8px 12px; border-radius: 12px;
-            margin-bottom: 6px; border-left: 3px solid #ef4444;
-            color: #cbd5e1; display: flex; justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: #0b0f1c;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 6px;
+            border-left: 3px solid #ef4444;
+            color: #cbd5e1;
+            display: flex;
+            justify-content: space-between;
         }
         .log-entry span:last-child { color: #94a3b8; }
-
-        .timestamp-badge { font-size: 0.7rem; color: #64748b; }
-        footer { margin-top: 24px; font-size: 0.75rem; color: #475569; text-align: center; }
+        .timestamp-badge {
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        footer {
+            margin-top: 24px;
+            font-size: 0.75rem;
+            color: #475569;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -158,13 +254,6 @@
             <div class="card-unit">BPM</div>
         </div>
         <div class="card">
-            <div class="card-label">Rating <span>⭐</span></div>
-            <div class="card-value" style="font-size:1.3rem;">
-                <span id="ratingPill" class="rating-pill rating-none">--</span>
-            </div>
-            <div class="card-unit">Signal: <span id="ampVal">0</span></div>
-        </div>
-        <div class="card">
             <div class="card-label">Temperature <span>🌡️</span></div>
             <div class="card-value" id="tempVal">--</div>
             <div class="card-unit">°C</div>
@@ -182,9 +271,7 @@
         <div class="card">
             <div class="card-label">Status</div>
             <div id="statusPill" class="status-pill status-normal" style="margin-top:6px;">NORMAL</div>
-            <div class="card-unit" style="margin-top:8px;">
-                Uptime: <span id="uptimeVal">0</span>s · Finger: <span id="fingerVal">NO</span>
-            </div>
+            <div class="card-unit" style="margin-top:8px;">Uptime: <span id="uptimeVal">0</span>s</div>
         </div>
     </div>
 
@@ -196,7 +283,7 @@
         </div>
         <div class="ml-grid">
             <div class="ml-item">
-                <div class="label">Menstrual phase</div>
+                <div class="label">Menstrual phase prediction</div>
                 <div class="value" id="mlPhase">—</div>
             </div>
             <div class="ml-item">
@@ -204,21 +291,13 @@
                 <div class="value" id="mlAnomaly">0.0</div>
             </div>
             <div class="ml-item">
-                <div class="label">Risk indicator</div>
+                <div class="label">Health risk indicator</div>
                 <div class="value" id="mlRisk">Low</div>
-            </div>
-            <div class="ml-item">
-                <div class="label">Beats counted</div>
-                <div class="value" id="mlBeats">0</div>
-            </div>
-            <div class="ml-item">
-                <div class="label">Signal quality</div>
-                <div class="value" id="mlQuality">—</div>
             </div>
         </div>
         <div class="ml-note">
-            ⚡ ML runs on edge (ESP32). Features: BPM, temp, motion, SOS, signal quality.
-            Phase classification uses physiological thresholds + temporal smoothing.
+            ⚡ ML model runs on edge (simulated). Features: BPM, temp, motion, SOS. 
+            Phase classification & anomaly detection based on physiological thresholds.
         </div>
     </div>
 
@@ -240,92 +319,56 @@
         </div>
     </div>
 
-    <div class="chart-row">
-        <div class="chart-container">
-            <div class="chart-header">
-                <h3>🧠 Anomaly score (0–1)</h3>
-                <span class="timestamp-badge" id="anomTime">—</span>
-            </div>
-            <canvas id="anomChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <div class="chart-header">
-                <h3>📈 Pulse waveform (signal -200..+200)</h3>
-                <span class="timestamp-badge" id="waveTime">—</span>
-            </div>
-            <canvas id="waveChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Fault log -->
+    <!-- Fault log (from Firebase) -->
     <div class="fault-log">
         <h3>⚠️ Recent fault logs (SOS / alerts)</h3>
         <div id="logContainer">
             <div class="log-entry">No fault logs yet</div>
         </div>
     </div>
-    <footer>IoT Smart Menstrual Health Monitoring · Real-time Firebase + on-device ML</footer>
+    <footer>IoT Smart Menstrual Health Monitoring · Real-time Firebase + on-device ML simulation</footer>
 </div>
 
 <script>
     (function() {
         // =====================================================
-        //  FIREBASE CONFIG
+        //  FIREBASE CONFIG (matching ESP32 code)
         // =====================================================
         const firebaseConfig = {
             apiKey: "AIzaSyCq8K24B3cK2hgL2rSXDR6lMFt43lxKuCw",
             databaseURL: "https://menstrual-health-monitoring-default-rtdb.asia-southeast1.firebasedatabase.app",
+            // legacy token not needed here since we use public read for demo? 
+            // For simplicity, we read without auth (database rules must allow read).
+            // But to match ESP32 secret we could use it if needed, but it's not secure in client.
+            // However we just listen to public data (assuming read rules allow).
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // =====================================================
-        //  DOM REFS
-        // =====================================================
-        const $ = (id) => document.getElementById(id);
+        // DOM references
+        const bpmVal = document.getElementById('bpmVal');
+        const tempVal = document.getElementById('tempVal');
+        const accelVal = document.getElementById('accelVal');
+        const sosVal = document.getElementById('sosVal');
+        const sosLabel = document.getElementById('sosLabel');
+        const statusPill = document.getElementById('statusPill');
+        const uptimeVal = document.getElementById('uptimeVal');
+        const connDot = document.getElementById('connDot');
+        const connText = document.getElementById('connText');
+        const mlPhase = document.getElementById('mlPhase');
+        const mlAnomaly = document.getElementById('mlAnomaly');
+        const mlRisk = document.getElementById('mlRisk');
+        const logContainer = document.getElementById('logContainer');
+        const bpmTime = document.getElementById('bpmTime');
+        const tempTime = document.getElementById('tempTime');
 
-        const bpmVal     = $('bpmVal');
-        const ampVal     = $('ampVal');
-        const ratingPill = $('ratingPill');
-        const tempVal    = $('tempVal');
-        const accelVal   = $('accelVal');
-        const sosVal     = $('sosVal');
-        const sosLabel   = $('sosLabel');
-        const statusPill = $('statusPill');
-        const uptimeVal  = $('uptimeVal');
-        const fingerVal  = $('fingerVal');
-        const connDot    = $('connDot');
-        const connText   = $('connText');
+        // Chart.js setup
+        const bpmCtx = document.getElementById('bpmChart').getContext('2d');
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
 
-        const mlPhase    = $('mlPhase');
-        const mlAnomaly  = $('mlAnomaly');
-        const mlRisk     = $('mlRisk');
-        const mlBeats    = $('mlBeats');
-        const mlQuality  = $('mlQuality');
-
-        const logContainer = $('logContainer');
-
-        const bpmTime   = $('bpmTime');
-        const tempTime  = $('tempTime');
-        const anomTime  = $('anomTime');
-        const waveTime  = $('waveTime');
-
-        // =====================================================
-        //  CHARTS
-        // =====================================================
-        const commonOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { display: false },
-                y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } }
-            }
-        };
-
-        const bpmChart = new Chart($('bpmChart').getContext('2d'), {
+        const bpmChart = new Chart(bpmCtx, {
             type: 'line',
             data: {
                 labels: [],
@@ -334,13 +377,25 @@
                     data: [],
                     borderColor: '#f472b6',
                     backgroundColor: 'rgba(244, 114, 182, 0.15)',
-                    borderWidth: 2, pointRadius: 1, tension: 0.3, fill: true,
+                    borderWidth: 2,
+                    pointRadius: 1,
+                    tension: 0.3,
+                    fill: true,
                 }]
             },
-            options: commonOpts
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { beginAtZero: false, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } }
+                }
+            }
         });
 
-        const tempChart = new Chart($('tempChart').getContext('2d'), {
+        const tempChart = new Chart(tempCtx, {
             type: 'line',
             data: {
                 labels: [],
@@ -350,7 +405,9 @@
                         data: [],
                         borderColor: '#fbbf24',
                         backgroundColor: 'rgba(251, 191, 36, 0.1)',
-                        borderWidth: 2, pointRadius: 1, tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        tension: 0.3,
                         yAxisID: 'y',
                     },
                     {
@@ -358,96 +415,92 @@
                         data: [],
                         borderColor: '#60a5fa',
                         backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                        borderWidth: 2, pointRadius: 1, tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 1,
+                        tension: 0.3,
                         yAxisID: 'y1',
                     }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { display: false },
-                    y: { type: 'linear', position: 'left', grid: { color: '#1e293b' }, ticks: { color: '#fbbf24' } },
-                    y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#60a5fa' } }
+                    y: { type: 'linear', display: true, position: 'left', grid: { color: '#1e293b' }, ticks: { color: '#fbbf24' } },
+                    y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#60a5fa' } }
                 }
             }
         });
 
-        const anomChart = new Chart($('anomChart').getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Anomaly',
-                    data: [],
-                    borderColor: '#a78bfa',
-                    backgroundColor: 'rgba(167, 139, 250, 0.15)',
-                    borderWidth: 2, pointRadius: 1, tension: 0.3, fill: true,
-                }]
-            },
-            options: {
-                ...commonOpts,
-                scales: {
-                    x: { display: false },
-                    y: { beginAtZero: true, max: 1.0, grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } }
-                }
-            }
-        });
-
-        const waveChart = new Chart($('waveChart').getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Signal',
-                    data: [],
-                    borderColor: '#22d3ee',
-                    backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                    borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: true,
-                }]
-            },
-            options: {
-                ...commonOpts,
-                scales: {
-                    x: { display: false },
-                    y: { grid: { color: '#1e293b' }, ticks: { color: '#94a3b8' } }
-                }
-            }
-        });
-
-        // =====================================================
-        //  BUFFERS
-        // =====================================================
+        // Data buffers for charts (keep last 30 points)
         const maxPoints = 30;
-        const waveMax   = 60;
-
-        let bpmBuffer   = [];
-        let tempBuffer  = [];
+        let bpmBuffer = [];
+        let tempBuffer = [];
         let accelBuffer = [];
-        let anomBuffer  = [];
-        let waveBuffer  = [];
-        let timeLabels  = [];
+        let timeLabels = [];
+
+        // Current live values from Firebase (for ML)
+        let currentData = {
+            bpm: 0,
+            temperature: 0,
+            acceleration: 0,
+            sos: false,
+            healthAlarm: false,
+            uptime: 0
+        };
 
         // =====================================================
-        //  RATING HELPER
+        //  ML SIMULATION (on-device inference)
         // =====================================================
-        function getRating(bpm, amp, finger) {
-            if (!finger)                    return { label: "No Signal", cls: "rating-none" };
-            if (bpm === 0)                  return { label: "Acquiring", cls: "rating-weak" };
-            if (bpm >= 60 && bpm <= 100 && amp >= 120)
-                                            return { label: "Excellent", cls: "rating-excellent" };
-            if (bpm >= 55 && bpm <= 110)    return { label: "Good",      cls: "rating-good" };
-            if (bpm >= 50 && bpm <= 120)    return { label: "Fair",      cls: "rating-fair" };
-            if (amp >= 30)                  return { label: "Weak",      cls: "rating-weak" };
-            return { label: "Poor", cls: "rating-poor" };
+        function runML(data) {
+            const { bpm, temperature, acceleration, sos, healthAlarm } = data;
+
+            // --- Phase prediction (simulated: based on temperature & BPM trends) ---
+            let phase = "Follicular";
+            if (temperature > 37.2 && bpm > 75) phase = "Luteal";
+            else if (temperature > 36.8 && bpm > 70) phase = "Ovulatory";
+            else if (temperature < 36.4 && bpm < 65) phase = "Menstrual";
+            // Additional logic for high temp / high bpm
+            if (temperature >= 37.8) phase = "Luteal (high)";
+            if (sos) phase = "Emergency";
+            mlPhase.textContent = phase;
+
+            // --- Anomaly score (0-1) using simple heuristics ---
+            let anomaly = 0.0;
+            if (bpm > 0) {
+                if (bpm > 110 || bpm < 50) anomaly += 0.4;
+                else if (bpm > 95 || bpm < 55) anomaly += 0.2;
+            } else anomaly += 0.1; // no pulse? slight anomaly
+            
+            if (temperature !== 0 && temperature !== -127) {
+                if (temperature > 38.0 || temperature < 30.0) anomaly += 0.4;
+                else if (temperature > 37.5 || temperature < 35.0) anomaly += 0.25;
+            }
+            if (acceleration > 2.5) anomaly += 0.3;
+            else if (acceleration > 1.8) anomaly += 0.15;
+            if (sos) anomaly += 0.5;
+            if (healthAlarm) anomaly += 0.2;
+            anomaly = Math.min(anomaly, 1.0);
+            mlAnomaly.textContent = anomaly.toFixed(2);
+
+            // --- Risk indicator ---
+            let risk = "Low";
+            if (anomaly > 0.7 || sos) risk = "Critical";
+            else if (anomaly > 0.45 || healthAlarm) risk = "High";
+            else if (anomaly > 0.25) risk = "Moderate";
+            mlRisk.textContent = risk;
+            mlRisk.style.color = risk === "Critical" ? "#ef4444" : risk === "High" ? "#f97316" : risk === "Moderate" ? "#eab308" : "#22c55e";
         }
 
         // =====================================================
-        //  LIVE DATA LISTENER
+        //  FIREBASE REALTIME LISTENER
         // =====================================================
         const healthRef = db.ref('/health_monitor');
 
+        // Live data listener
         healthRef.on('value', (snapshot) => {
             const data = snapshot.val();
             if (!data) {
@@ -456,106 +509,68 @@
                 return;
             }
 
+            // Connection is OK
             connDot.classList.remove('offline');
             connText.textContent = "Live · Firebase connected";
 
-            // ---- Extract ----
-            const bpm            = data.bpm || 0;
-            const pulse          = data.pulse || 0;
-            const amp            = data.amp || 0;
-            const temperature    = (typeof data.temperature === 'number') ? data.temperature : 0;
-            const acceleration   = data.acceleration || 0;
-            const sos            = data.sos || false;
-            const healthAlarm    = data.healthAlarm || false;
-            const finger         = data.finger || false;
-            const uptime         = data.uptime || 0;
-            const beats          = data.beats || 0;
-            const status         = data.status || "NORMAL";
-            const ratingData     = data.rating || null;
+            // Extract values with defaults
+            const bpm = data.bpm || 0;
+            const pulse = data.pulse || 0;
+            const temperature = (data.temperature !== undefined && data.temperature !== null) ? data.temperature : 0;
+            const acceleration = data.acceleration || 0;
+            const sos = data.sos || false;
+            const healthAlarm = data.healthAlarm || false;
+            const uptime = data.uptime || 0;
+            const status = data.status || "NORMAL";
 
-            // ---- Cards ----
-            bpmVal.textContent   = bpm > 0 ? bpm : '--';
-            ampVal.textContent   = amp;
-            tempVal.textContent  = (temperature !== 0 && temperature !== -127) ? temperature.toFixed(1) : '--';
+            // Update currentData for ML
+            currentData = { bpm, temperature, acceleration, sos, healthAlarm, uptime };
+
+            // Update UI cards
+            bpmVal.textContent = bpm > 0 ? bpm : '--';
+            tempVal.textContent = (temperature !== 0 && temperature !== -127) ? temperature.toFixed(1) : '--';
             accelVal.textContent = acceleration.toFixed(2);
-            sosVal.textContent   = sos ? '🆘' : '—';
+            sosVal.textContent = sos ? '🆘' : '—';
             sosLabel.textContent = sos ? 'PRESSED' : 'normal';
             uptimeVal.textContent = uptime;
-            fingerVal.textContent = finger ? 'YES' : 'NO';
 
-            // ---- Rating pill ----
-            const r = ratingData ? { label: ratingData, cls:
-                ratingData === 'Excellent' ? 'rating-excellent' :
-                ratingData === 'Good'      ? 'rating-good' :
-                ratingData === 'Fair'      ? 'rating-fair' :
-                ratingData === 'Weak'      ? 'rating-weak' :
-                ratingData === 'Poor'      ? 'rating-poor' : 'rating-none'
-            } : getRating(bpm, amp, finger);
-            ratingPill.textContent = r.label;
-            ratingPill.className = 'rating-pill ' + r.cls;
-
-            // ---- Status pill ----
+            // Status pill
             statusPill.textContent = status;
-            statusPill.className = 'status-pill ' +
-                (status === 'SOS' ? 'status-sos' :
-                 status === 'ALERT' ? 'status-alert' : 'status-normal');
+            statusPill.className = 'status-pill ' + 
+                (status === 'SOS' ? 'status-sos' : status === 'ALERT' ? 'status-alert' : 'status-normal');
 
-            // ---- ML fields from ESP32 ----
-            mlPhase.textContent   = data.ml_phase   || '—';
-            mlAnomaly.textContent = (typeof data.ml_anomaly === 'number') ? data.ml_anomaly.toFixed(2) : '0.0';
-            mlRisk.textContent    = data.ml_risk    || 'Low';
-            mlRisk.style.color =
-                mlRisk.textContent === 'Critical' ? '#ef4444' :
-                mlRisk.textContent === 'High'     ? '#f97316' :
-                mlRisk.textContent === 'Moderate' ? '#eab308' : '#22c55e';
-            mlBeats.textContent   = beats;
-            mlQuality.textContent = r.label;
+            // Run ML inference
+            runML(currentData);
 
-            // ---- Timestamp ----
+            // Update charts
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', {
-                hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
-            });
-
-            // ---- Buffers ----
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
             timeLabels.push(timeStr);
             bpmBuffer.push(bpm > 0 ? bpm : null);
-            tempBuffer.push((temperature !== 0 && temperature !== -127) ? temperature : null);
+            tempBuffer.push(temperature !== 0 ? temperature : null);
             accelBuffer.push(acceleration);
-            anomBuffer.push(parseFloat(data.ml_anomaly) || 0);
-            waveBuffer.push(pulse);
 
+            // Keep buffer length
             if (timeLabels.length > maxPoints) {
                 timeLabels.shift();
                 bpmBuffer.shift();
                 tempBuffer.shift();
                 accelBuffer.shift();
-                anomBuffer.shift();
             }
-            if (waveBuffer.length > waveMax) waveBuffer.shift();
 
-            // ---- Update charts ----
+            // Update BPM chart
             bpmChart.data.labels = timeLabels;
             bpmChart.data.datasets[0].data = bpmBuffer;
             bpmChart.update('none');
 
+            // Update Temp/Motion chart
             tempChart.data.labels = timeLabels;
             tempChart.data.datasets[0].data = tempBuffer;
             tempChart.data.datasets[1].data = accelBuffer;
             tempChart.update('none');
 
-            anomChart.data.labels = timeLabels;
-            anomChart.data.datasets[0].data = anomBuffer;
-            anomChart.update('none');
-
-            waveChart.data.labels = waveBuffer.map((_, i) => i);
-            waveChart.data.datasets[0].data = waveBuffer;
-            waveChart.update('none');
-
-            bpmTime.textContent  = timeStr;
+            bpmTime.textContent = timeStr;
             tempTime.textContent = timeStr;
-            anomTime.textContent = timeStr;
-            waveTime.textContent = timeStr;
         }, (error) => {
             console.error('Firebase read error:', error);
             connDot.classList.add('offline');
@@ -563,15 +578,15 @@
         });
 
         // =====================================================
-        //  FAULT LOGS
+        //  FAULT LOGS LISTENER (push logs)
         // =====================================================
         const logsRef = db.ref('/health_monitor/fault_logs').limitToLast(8);
         logsRef.on('child_added', (snapshot) => {
             const log = snapshot.val();
             if (!log) return;
 
-            if (logContainer.children.length === 1 &&
-                logContainer.children[0].textContent.includes('No fault logs yet')) {
+            // Remove placeholder if present
+            if (logContainer.children.length === 1 && logContainer.children[0].textContent.includes('No fault logs yet')) {
                 logContainer.innerHTML = '';
             }
 
@@ -580,22 +595,18 @@
             const time = log.uptime ? `${log.uptime}s` : '—';
             const status = log.status || 'ALERT';
             const bpm = log.bpm || 0;
-            const temp = (typeof log.temperature === 'number') ? log.temperature.toFixed(1) : '—';
-            const accel = (typeof log.acceleration === 'number') ? log.acceleration.toFixed(2) : '—';
-            const mlPhaseStr = log.ml_phase || '—';
-            const mlRiskStr = log.ml_risk || '—';
-
-            entry.innerHTML =
-                `<span>${status} · BPM ${bpm} · ${temp}°C · ${accel}g · ` +
-                `ML: ${mlPhaseStr}/${mlRiskStr} · SOS ${log.sos ? 'YES' : 'NO'}</span>` +
-                `<span>${time}</span>`;
-
+            const temp = log.temperature ? log.temperature.toFixed(1) : '—';
+            const accel = log.acceleration ? log.acceleration.toFixed(2) : '—';
+            entry.innerHTML = `<span>${status} · BPM ${bpm} · ${temp}°C · ${accel}g · SOS ${log.sos ? 'YES' : 'NO'}</span><span>${time}</span>`;
             logContainer.prepend(entry);
+
+            // Limit to 8 entries
             while (logContainer.children.length > 8) {
                 logContainer.removeChild(logContainer.lastChild);
             }
         });
 
+        // Also handle initial no logs case
         setTimeout(() => {
             if (logContainer.children.length === 0) {
                 logContainer.innerHTML = '<div class="log-entry">No fault logs yet</div>';
